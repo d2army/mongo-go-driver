@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -535,6 +536,7 @@ func (s *Server) update() {
 			// Clear the pool once the description has been updated to Unknown. Pass in a nil service ID to clear
 			// because the monitoring routine only runs for non-load balanced deployments in which servers don't return
 			// IDs.
+			log.Println("Dammit, error : ", desc.LastError)
 			s.pool.clear(nil)
 		}
 

@@ -9,13 +9,14 @@ package topology
 import (
 	"context"
 	"fmt"
-	"sync"
-	"sync/atomic"
-	"time"
-
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/event"
 	"go.mongodb.org/mongo-driver/mongo/address"
+	"log"
+	"runtime/debug"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 // ErrPoolConnected is returned from an attempt to connect an already connected pool
@@ -117,6 +118,7 @@ func newPool(config poolConfig, connOpts ...ConnectionOption) *pool {
 	pool.connOpts = append(pool.connOpts, withGenerationNumberFn(func(_ generationNumberFn) generationNumberFn { return pool.getGenerationForNewConnection }))
 
 	if pool.monitor != nil {
+		log.Println(fmt.Sprintf("We got pool created , address: %v, min pool size: %v, max pool size: %v", pool.address.String(), config.MinPoolSize, config.MaxPoolSize))
 		pool.monitor.Event(&event.PoolEvent{
 			Type: event.PoolCreated,
 			PoolOptions: &event.MonitorPoolOptions{
@@ -435,6 +437,9 @@ func (p *pool) removeConnection(conn *connection, reason string) error {
 	}
 
 	if p.monitor != nil {
+		log.Println(fmt.Sprintf("We got connection closed , address: %v, connection id: %v, reason: %v ", p.address.String(), conn.poolID, reason))
+		debug.PrintStack()
+		log.Println("\n\n")
 		p.monitor.Event(&event.PoolEvent{
 			Type:         event.ConnectionClosed,
 			Address:      p.address.String(),
@@ -511,6 +516,9 @@ func (p *pool) checkInNoEvent(conn *connection) error {
 // clear clears the pool by incrementing the generation
 func (p *pool) clear(serviceID *primitive.ObjectID) {
 	if p.monitor != nil {
+		log.Println(fmt.Sprintf("Pool clearing! , address: %v, serviceId: %v", p.address.String(), serviceID))
+		debug.PrintStack()
+		log.Println("\n\n")
 		p.monitor.Event(&event.PoolEvent{
 			Type:      event.PoolCleared,
 			Address:   p.address.String(),
@@ -640,6 +648,9 @@ func (p *pool) createConnections(ctx context.Context, wg *sync.WaitGroup) {
 		}
 
 		if p.monitor != nil {
+			log.Println(fmt.Sprintf("We got Connection Created!  address: %v, connection id: %v", p.address.String(), conn.poolID))
+			debug.PrintStack()
+			log.Println("\n\n")
 			p.monitor.Event(&event.PoolEvent{
 				Type:         event.ConnectionCreated,
 				Address:      p.address.String(),
@@ -650,6 +661,7 @@ func (p *pool) createConnections(ctx context.Context, wg *sync.WaitGroup) {
 		conn.connect(context.Background())
 		err := conn.wait()
 		if err != nil {
+			log.Println("Error happened in connecting: ", err)
 			_ = p.removeConnection(conn, event.ReasonConnectionErrored)
 			_ = p.closeConnection(conn)
 			w.tryDeliver(nil, err)
@@ -657,6 +669,7 @@ func (p *pool) createConnections(ctx context.Context, wg *sync.WaitGroup) {
 		}
 
 		if p.monitor != nil {
+			log.Println(fmt.Sprintf("We got connection ready, address: %v, connection id: %v", p.address.String(), conn.poolID))
 			p.monitor.Event(&event.PoolEvent{
 				Type:         event.ConnectionReady,
 				Address:      p.address.String(),
