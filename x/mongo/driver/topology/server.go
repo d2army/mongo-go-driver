@@ -311,8 +311,9 @@ func (s *Server) ProcessHandshakeError(err error, startingGenerationNumber uint6
 	// the description.Server appropriately. The description should not have a TopologyVersion because the staleness
 	// checking logic above has already determined that this description is not stale.
 	s.updateDescription(description.NewServerFromError(s.address, wrappedConnErr, nil))
-	log.Println(fmt.Sprintf("[ProcessHandshakeError] Pool cleared! address: %v, handshake error: %v, startingGenerationNumber: %v, serviceId: %v",
-		s.address.String(), err, startingGenerationNumber, serviceID))
+	log.Println(fmt.Sprintf("[ProcessHandshakeError] Pool cleared! address: %v, handshake error: %v, startingGenerationNumber: %v, serviceId: %v", s.address.String(), err, startingGenerationNumber, serviceID))
+	debug.PrintStack()
+	log.Println("\n\n")
 	s.pool.clear(err, serviceID)
 	s.cancelCheck()
 }
@@ -420,8 +421,8 @@ func (s *Server) ProcessError(err error, conn driver.Connection) driver.ProcessE
 		// If the node is shutting down or is older than 4.2, we synchronously clear the pool
 		if cerr.NodeIsShuttingDown() || desc.WireVersion == nil || desc.WireVersion.Max < 8 {
 			res = driver.ConnectionPoolCleared
-			log.Println(fmt.Sprintf("[ProcessError] Pool cleared! address: %v, error: %v, connection: %v",
-				s.address.String(), err, conn))
+			log.Println(fmt.Sprintf("[ProcessError] Pool cleared! address: %v, serviceId: %v, error: %v, connection: %v",
+				s.address.String(), desc.ServiceID, err, conn))
 			debug.PrintStack()
 			log.Println("\n\n")
 			s.pool.clear(err, desc.ServiceID)
@@ -443,8 +444,8 @@ func (s *Server) ProcessError(err error, conn driver.Connection) driver.ProcessE
 		// If the node is shutting down or is older than 4.2, we synchronously clear the pool
 		if wcerr.NodeIsShuttingDown() || desc.WireVersion == nil || desc.WireVersion.Max < 8 {
 			res = driver.ConnectionPoolCleared
-			log.Println(fmt.Sprintf("[ProcessError] Pool cleared! address: %v, error: %v, connection: %v",
-				s.address.String(), err, conn))
+			log.Println(fmt.Sprintf("[ProcessError] Pool cleared! address: %v, serviceId: %v, error: %v, connection: %v",
+				s.address.String(), desc.ServiceID, err, conn))
 			debug.PrintStack()
 			log.Println("\n\n")
 			s.pool.clear(err, desc.ServiceID)
@@ -469,8 +470,8 @@ func (s *Server) ProcessError(err error, conn driver.Connection) driver.ProcessE
 	// monitoring check. The check is cancelled last to avoid a post-cancellation reconnect racing with
 	// updateDescription.
 	s.updateDescription(description.NewServerFromError(s.address, err, nil))
-	log.Println(fmt.Sprintf("[ProcessError] Pool cleared! address: %v, error: %v, connection: %v",
-		s.address.String(), err, conn))
+	log.Println(fmt.Sprintf("[ProcessError] Pool cleared! address: %v, serviceId: %v, error: %v, connection: %v",
+		s.address.String(), desc.ServiceID, err, conn))
 	debug.PrintStack()
 	log.Println("\n\n")
 	s.pool.clear(err, desc.ServiceID)
@@ -570,8 +571,8 @@ func (s *Server) update() {
 			// Clear the pool once the description has been updated to Unknown. Pass in a nil service ID to clear
 			// because the monitoring routine only runs for non-load balanced deployments in which servers don't return
 			// IDs.
-			log.Println(fmt.Sprintf("[ProcessError] Pool cleared! address: %v, error: %v",
-				s.address.String(), err))
+			log.Println(fmt.Sprintf("[UpdateServerDescFailed] Pool cleared! address: %v, desc: %v, error: %v",
+				s.address.String(), desc, err))
 			debug.PrintStack()
 			log.Println("\n\n")
 			s.pool.clear(err, nil)
